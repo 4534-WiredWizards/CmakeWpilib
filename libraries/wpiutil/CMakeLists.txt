@@ -18,9 +18,6 @@ if (NOT WITHOUT_JAVA)
 
 endif()
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
 file(GLOB_RECURSE wpiutil_native_src wpiutil/src/main/native/cpp/*.cpp)
 
 add_library(wpiutil ${wpiutil_native_src})
@@ -33,7 +30,7 @@ else()
     target_compile_options(wpiutil PUBLIC )
 endif()
 
-target_link_libraries(wpiutil Threads::Threads)
+target_link_libraries(wpiutil pthread)
 target_include_directories(wpiutil PUBLIC
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wpiutil/src/main/native/include>
                             $<INSTALL_INTERFACE:${include_dest}/wpiutil>)
