@@ -1,25 +1,25 @@
-#include "getContours.h"
+#include "tape.h"
 
 namespace grip {
 
-getContours::getContours() {
+tape::tape() {
 }
 /**
 * Runs an iteration of the pipeline and updates outputs.
 */
-void getContours::Process(cv::Mat& source0){
+void tape::Process(cv::Mat& source0){
 	//Step Blur0:
 	//input
 	cv::Mat blurInput = source0;
-	BlurType blurType = BlurType::MEDIAN;
-	double blurRadius = 7.0;  // default Double
+	TapeBlurType blurType = TapeBlurType::TAPEBOX;
+	double blurRadius = 2.8301886792452833;  // default Double
 	blur(blurInput, blurType, blurRadius, this->blurOutput);
 	//Step HSL_Threshold0:
 	//input
 	cv::Mat hslThresholdInput = blurOutput;
-	double hslThresholdHue[] = {20.0, 40.0};
-	double hslThresholdSaturation[] = {90.0, 255.0};
-	double hslThresholdLuminance[] = {30.0, 255.0};
+	double hslThresholdHue[] = {75.64321424216558, 93.00527240773287};
+	double hslThresholdSaturation[] = {237.71186440677965, 255.0};
+	double hslThresholdLuminance[] = {78.0225988700565, 255.0};
 	hslThreshold(hslThresholdInput, hslThresholdHue, hslThresholdSaturation, hslThresholdLuminance, this->hslThresholdOutput);
 	//Step Mask0:
 	//input
@@ -41,35 +41,35 @@ void getContours::Process(cv::Mat& source0){
  * This method is a generated getter for the output of a Blur.
  * @return Mat output from Blur.
  */
-cv::Mat* getContours::GetBlurOutput(){
+cv::Mat* tape::GetBlurOutput(){
 	return &(this->blurOutput);
 }
 /**
  * This method is a generated getter for the output of a HSL_Threshold.
  * @return Mat output from HSL_Threshold.
  */
-cv::Mat* getContours::GetHslThresholdOutput(){
+cv::Mat* tape::GetHslThresholdOutput(){
 	return &(this->hslThresholdOutput);
 }
 /**
  * This method is a generated getter for the output of a Mask.
  * @return Mat output from Mask.
  */
-cv::Mat* getContours::GetMaskOutput(){
+cv::Mat* tape::GetMaskOutput(){
 	return &(this->maskOutput);
 }
 /**
  * This method is a generated getter for the output of a Find_Contours.
  * @return ContoursReport output from Find_Contours.
  */
-std::vector<std::vector<cv::Point> >* getContours::GetFindContoursOutput(){
+std::vector<std::vector<cv::Point> >* tape::GetFindContoursOutput(){
 	return &(this->findContoursOutput);
 }
 /**
  * This method is a generated getter for the output of a Convex_Hulls.
  * @return ContoursReport output from Convex_Hulls.
  */
-std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
+std::vector<std::vector<cv::Point> >* tape::GetConvexHullsOutput(){
 	return &(this->convexHullsOutput);
 }
 	/**
@@ -80,23 +80,23 @@ std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
 	 * @param doubleRadius The radius for the blur.
 	 * @param output The image in which to store the output.
 	 */
-	void getContours::blur(cv::Mat &input, BlurType &type, double doubleRadius, cv::Mat &output) {
+	void tape::blur(cv::Mat &input, TapeBlurType &type, double doubleRadius, cv::Mat &output) {
 		int radius = (int)(doubleRadius + 0.5);
 		int kernelSize;
 		switch(type) {
-			case BOX:
+			case TAPEBOX:
 				kernelSize = 2 * radius + 1;
 				cv::blur(input,output,cv::Size(kernelSize, kernelSize));
 				break;
-			case GAUSSIAN:
+			case TAPEGAUSSIAN:
 				kernelSize = 6 * radius + 1;
 				cv::GaussianBlur(input, output, cv::Size(kernelSize, kernelSize), radius);
 				break;
-			case MEDIAN:
+			case TAPEMEDIAN:
 				kernelSize = 2 * radius + 1;
 				cv::medianBlur(input, output, kernelSize);
 				break;
-			case BILATERAL:
+			case TAPEBILATERAL:
 				cv::bilateralFilter(input, output, -1, radius, radius);
 				break;
         }
@@ -111,7 +111,7 @@ std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
 	 * @param output The image in which to store the output.
 	 */
 	//void hslThreshold(Mat *input, double hue[], double sat[], double lum[], Mat *out) {
-	void getContours::hslThreshold(cv::Mat &input, double hue[], double sat[], double lum[], cv::Mat &out) {
+	void tape::hslThreshold(cv::Mat &input, double hue[], double sat[], double lum[], cv::Mat &out) {
 		cv::cvtColor(input, out, cv::COLOR_BGR2HLS);
 		cv::inRange(out, cv::Scalar(hue[0], lum[0], sat[0]), cv::Scalar(hue[1], lum[1], sat[1]), out);
 	}
@@ -123,7 +123,7 @@ std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
 		 * @param mask The binary image that is used to filter.
 		 * @param output The image in which to store the output.
 		 */
-		void getContours::mask(cv::Mat &input, cv::Mat &mask, cv::Mat &output) {
+		void tape::mask(cv::Mat &input, cv::Mat &mask, cv::Mat &output) {
 			mask.convertTo(mask, CV_8UC1);
 			cv::bitwise_xor(output, output, output);
 			input.copyTo(output, mask);
@@ -136,7 +136,7 @@ std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
 	 * @param externalOnly if only external contours are to be found.
 	 * @param contours vector of contours to put contours in.
 	 */
-	void getContours::findContours(cv::Mat &input, bool externalOnly, std::vector<std::vector<cv::Point> > &contours) {
+	void tape::findContours(cv::Mat &input, bool externalOnly, std::vector<std::vector<cv::Point> > &contours) {
 		std::vector<cv::Vec4i> hierarchy;
 		contours.clear();
 		int mode = externalOnly ? cv::RETR_EXTERNAL : cv::RETR_LIST;
@@ -150,7 +150,7 @@ std::vector<std::vector<cv::Point> >* getContours::GetConvexHullsOutput(){
 	 * @param inputContours The contours on which to perform the operation.
 	 * @param outputContours The contours where the output will be stored.
 	 */
-	void getContours::convexHulls(std::vector<std::vector<cv::Point> > &inputContours, std::vector<std::vector<cv::Point> > &outputContours) {
+	void tape::convexHulls(std::vector<std::vector<cv::Point> > &inputContours, std::vector<std::vector<cv::Point> > &outputContours) {
 		std::vector<std::vector<cv::Point> > hull (inputContours.size());
 		outputContours.clear();
 		for (size_t i = 0; i < inputContours.size(); i++ ) {
