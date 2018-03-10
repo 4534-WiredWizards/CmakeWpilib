@@ -8,7 +8,13 @@
 #include "getContours.h"
 #include "tape.h"
 
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 int main() {
+
   auto inst = NT_GetDefaultInstance();
   //auto distanceEntry = 0;
   (void)inst;
@@ -21,7 +27,6 @@ int main() {
   double fieldOfViewY = (9 * (68.5 / (sqrt(337))));
   // converts standard aspect ratio of the camera into degrees
   double degreesToRadians = ((atan(1) * 4) / 180);
-  double inchesOffCenterCamera = 6;
   int fps = 10;
   //int debugCountInny = 0;
   //int debugCountOutty = 0;
@@ -39,14 +44,42 @@ int main() {
   cs::MjpegServer cvMjpegServer{"finalhttpserver", 8083};
   cvMjpegServer.SetSource(finale);
 
-  nt::SetEntryValue ("/CameraPublisher/usbcam/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://10.45.34.55:8081/?action=stream"})));
-  nt::SetEntryValue ("/CameraPublisher/filtered/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://10.45.34.55:8082/?action=stream"})));
-  nt::SetEntryValue ("/CameraPublisher/final/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://10.45.34.55:8083/?action=stream"})));
+  std::string jetsonAddress = "UNKNOWN";
 
+    struct ifaddrs * ifAddrStruct=NULL;
+    struct ifaddrs * ifa=NULL;
+    void * tmpAddrPtr=NULL;
+
+    getifaddrs(&ifAddrStruct);
+
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+            tmpAddrPtr=&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            std::cout << ifa->ifa_name << " IP Address " << addressBuffer << std::endl;
+            if(strcmp(ifa->ifa_name, "eth0") == 0 && jetsonAddress == "UNKNOWN") {
+                jetsonAddress = addressBuffer;
+            }
+        }
+    }
+
+    if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
+//    return 0;
+  nt::SetEntryValue ("/CameraPublisher/usbcam/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8081/?action=stream"})));
+  nt::SetEntryValue ("/CameraPublisher/filtered/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8082/?action=stream"})));
+  nt::SetEntryValue ("/CameraPublisher/final/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8083/?action=stream"})));
+
+  nt::SetEntryValue ("vision/jetsonAddress", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({jetsonAddress})));
 
   cv::Mat test;
   cv::Mat flip;
   for (;;){
+
     uint64_t time = cvsink.GrabFrame(test);
     if (time == 0) {
       std::cout << "error: " << cvsink.GetError() << std::endl;
@@ -126,12 +159,9 @@ int main() {
         std::cout << "Distance to box: " << distanceToBox << std::endl;
         nt::SetEntryValue ("vision/cubeDistance", nt::Value::MakeDouble(distanceToBox));
         //how far away the box is in inches
-		double straightDistanceToBox = (sqrt((distanceToBox * distanceToBox) - (inchesOffCenterX * inchesOffCenterX)));
-		double inchesOffCenterBox = (inchesOffCenterX - inchesOffCenterCamera);
-		
-        //double angleOfBox = atan2(inchesOffCenterX, distanceToBox);
-		double cubeAngle = atan2(inchesOffCenterBox, straightDistanceToBox);
-		nt::SetEntryValue ("vision/cubeAngle", nt::Value::MakeDouble(cubeAngle));
+
+        double angleOfBox = atan2(inchesOffCenterX, distanceToBox);
+        nt::SetEntryValue ("vision/cubeAngle", nt::Value::MakeDouble(angleOfBox));
         double pythagDistanceToBox = (sqrt((inchesOffCenterX * inchesOffCenterX) + (distanceToBox * distanceToBox)));
         nt::SetEntryValue ("vision/PythagDistanceToBox", nt::Value::MakeDouble(pythagDistanceToBox));
         //calculation for distance to box when it is not located in the center of the screen
@@ -193,7 +223,7 @@ int main() {
         std::cout << "Top right: (" << rightX << ", " << topY << ")" << std::endl;
         std::cout << "Bottom left: (" << leftX << ", " << bottomY << ")" << std::endl;
         std::cout << "Bottom right: (" << rightX << ", " << bottomY << ")" << std::endl;
-        //prints where the corners of the switch are located in the field of view with pixel coordinates
+        //prints where the corners of the box are located in the field of view with pixel coordinates
 
         cv::Point center = cv::Point((rightX - ((rightX - leftX) / 2)), (bottomY - ((bottomY - topY) / 2)));
         std::cout << "Center: (" << center.x << ", " << center.y << ")" << std::endl;
@@ -202,7 +232,7 @@ int main() {
         int pixelsOffCenterY = ((height / 2) - center.y);
 
         double magicRatio = (16.0 / (bottomY - topY));
-        //conversion from pixels to inches using the height of the tape
+        //conversion from pixels to inches using the height of the box
         double inchesOffCenterX = (pixelsOffCenterX * magicRatio);
 
         std::cout << "Inches off center: " << inchesOffCenterX << std::endl;
@@ -212,15 +242,13 @@ int main() {
         double distanceToTape = ((magicRatio * height) / (2.0 * tan((fieldOfViewY * degreesToRadians) / 2)));
         std::cout << "Distance to tape: " << distanceToTape << std::endl;
         nt::SetEntryValue ("vision/switchDistance", nt::Value::MakeDouble(distanceToTape));
-        //how far away the switch is in inches
-		double straightDistanceToTape = (sqrt((distanceToTape * distanceToTape) - (inchesOffCenterX * inchesOffCenterX)));
-		double inchesOffCenterTape = (inchesOffCenterX - inchesOffCenterCamera);
+        //how far away the box is in inches
 
-        double angleOfTape = atan2(inchesOffCenterTape, straightDistanceToTape);
+        double angleOfTape = atan2(inchesOffCenterX, distanceToTape);
         nt::SetEntryValue ("vision/switchAngle", nt::Value::MakeDouble(angleOfTape));
-        //double pythagDistanceToTape = (sqrt((inchesOffCenterX * inchesOffCenterX) + (distanceToTape * distanceToTape)));
-        //nt::SetEntryValue ("vision/PythagDistanceToTape", nt::Value::MakeDouble(pythagDistanceToTape));
-        //calculation for distance to switch when it is not located in the center of the screen
+        double pythagDistanceToTape = (sqrt((inchesOffCenterX * inchesOffCenterX) + (distanceToTape * distanceToTape)));
+        nt::SetEntryValue ("vision/PythagDistanceToTape", nt::Value::MakeDouble(pythagDistanceToTape));
+        //calculation for distance to box when it is not located in the center of the screen
 
         std::cout << "Angled distance to tape: " << pythagDistanceToTape << std::endl;
     }
