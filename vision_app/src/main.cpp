@@ -33,15 +33,15 @@ int main() {
   grip::getContours GetContours = grip::getContours();
   grip::tape Tape = grip::tape();
   camera.SetVideoMode(cs::VideoMode::kMJPEG, width, height, fps);
-  cs::MjpegServer mjpegServer{"httpserver", 8081};
+  cs::MjpegServer mjpegServer{"httpserver", 1181};
   mjpegServer.SetSource(camera);
   cs::CvSink cvsink{"cvsink"};
   cvsink.SetSource(camera);
-  cs::CvSource filterimage{"filterimage", cs::VideoMode::kMJPEG, width, height, fps};
-  cs::MjpegServer fiMjpegServer{"fihttpserver", 8082};
+  cs::CvSource filterimage{"filterimage", cs::VideoMode::kMJPEG, width/2, height/2, fps};
+  cs::MjpegServer fiMjpegServer{"fihttpserver", 1182};
   fiMjpegServer.SetSource(filterimage);
-  cs::CvSource finale{"finale", cs::VideoMode::kMJPEG, width, height, fps};
-  cs::MjpegServer cvMjpegServer{"finalhttpserver", 8083};
+  cs::CvSource finale{"finale", cs::VideoMode::kMJPEG, width/2, height/2, fps};
+  cs::MjpegServer cvMjpegServer{"finalhttpserver", 1183};
   cvMjpegServer.SetSource(finale);
 
   std::string jetsonAddress = "UNKNOWN";
@@ -70,14 +70,16 @@ int main() {
 
     if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
 //    return 0;
-  nt::SetEntryValue ("/CameraPublisher/usbcam/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8081/?action=stream"})));
-  nt::SetEntryValue ("/CameraPublisher/filtered/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8082/?action=stream"})));
-  nt::SetEntryValue ("/CameraPublisher/final/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":8083/?action=stream"})));
+  nt::SetEntryValue ("/CameraPublisher/usbcam/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":1181/?action=stream"})));
+  nt::SetEntryValue ("/CameraPublisher/filtered/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":1182/?action=stream"})));
+  nt::SetEntryValue ("/CameraPublisher/final/streams", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({"http://"+jetsonAddress+":1183/?action=stream"})));
 
   nt::SetEntryValue ("vision/jetsonAddress", nt::Value::MakeStringArray(llvm::ArrayRef<std::string> ({jetsonAddress})));
 
   cv::Mat test;
   cv::Mat flip;
+
+  int imgCount = 1;
   for (;;){
 
     uint64_t time = cvsink.GrabFrame(test);
@@ -87,6 +89,15 @@ int main() {
     }
 
     //std::cout << "Outer = " << ++debugCountOutty << std::endl;
+    if(imgCount%fps==0){
+        try {
+            imwrite("~/Downloads/Pictures/"+imgCount/fps+".jpg", test);
+        }
+        catch (runtime_error& ex) {
+            fprintf(stderr, "Exception converting image to JPG format: %s\n", ex.what());
+        }
+    }
+    imgCount++;
 
     GetContours.Process(test);
     Tape.Process(test);
