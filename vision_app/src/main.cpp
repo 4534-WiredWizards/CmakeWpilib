@@ -90,12 +90,12 @@ int main() {
 
     //std::cout << "Outer = " << ++debugCountOutty << std::endl;
     if(imgCount%fps==0){
-        try {
-            imwrite("~/Downloads/Pictures/"+imgCount/fps+".jpg", test);
-        }
-        catch (runtime_error& ex) {
-            fprintf(stderr, "Exception converting image to JPG format: %s\n", ex.what());
-        }
+        //try {
+            imwrite("~/Downloads/Pictures/"+std::to_string(imgCount)+".jpg", test);
+        //}
+        //catch (runtime_error& ex) {
+        //    fprintf(stderr, "Exception converting image to JPG format: %s\n", ex.what());
+        //}
     }
     imgCount++;
 
