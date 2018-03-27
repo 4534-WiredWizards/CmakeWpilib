@@ -92,7 +92,7 @@ int main() {
     if(imgCount%fps==0){
         //try {
             //imwrite("~/Downloads/Pictures/"+std::to_string(imgCount/fps)+".jpg", test);
-            imwrite("/home/ubuntu/Downloads/Pictures/"+std::to_string(imgCount/fps)+".jpg", test);
+            imwrite("../Pictures/"+std::to_string(imgCount/fps)+".jpg", test);
             //imwrite("img.jpg", test);
         //}
         //catch (runtime_error& ex) {
